@@ -38,7 +38,7 @@ jobs:
           ignore-unfixed: true
 
   # ----------------------
-  # Python Code Scan
+  # Python Scan
   # ----------------------
   python-code-scan:
     runs-on: ubuntu-latest
@@ -53,29 +53,26 @@ jobs:
           else
             echo "python_found=false" >> $GITHUB_ENV
           fi
-      - name: Python syntax check
-        if: env.python_found == 'true'
-        run: python -m py_compile $(find . -name "*.py")
       - name: Run Python files
         if: env.python_found == 'true'
         run: |
           set -e
           for file in $(find . -name "*.py"); do
+            python -m py_compile "$file"
             echo "Running $file"
             python "$file"
           done
       - name: Install Flake8 & Bandit
         if: env.python_found == 'true'
         run: pip install flake8 bandit
-      - name: Run Flake8 linting
+      - name: Lint and security scan
         if: env.python_found == 'true'
-        run: flake8 . --ignore=E302,E305,W391
-      - name: Run Bandit security scan
-        if: env.python_found == 'true'
-        run: bandit -r . -ll -iii
+        run: |
+          flake8 . --ignore=E302,E305,W391
+          bandit -r . -ll -iii
 
   # ----------------------
-  # Java Code Scan (fixed)
+  # Java Scan (fixed)
   # ----------------------
   java-code-scan:
     runs-on: ubuntu-latest
@@ -94,14 +91,11 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Compile all Java files
+      - name: Compile & run Java files
         if: env.java_found == 'true'
         run: |
           mkdir -p build
           javac -d build $(find . -name "*.java")
-      - name: Run Java files (catch runtime errors)
-        if: env.java_found == 'true'
-        run: |
           set -e
           for file in $(find . -name "*.java"); do
             fqcn=$(sed 's|^\./||; s|/|.|g; s|\.java$||' <<< "$file")
@@ -110,7 +104,7 @@ jobs:
           done
 
   # ----------------------
-  # JavaScript / TypeScript Scan (fixed)
+  # JS/TS Scan (fixed)
   # ----------------------
   js-ts-code-scan:
     runs-on: ubuntu-latest
@@ -127,14 +121,14 @@ jobs:
       - name: Install ESLint
         if: env.js_found == 'true'
         run: npm install -g eslint
-      - name: Run ESLint for syntax & linting
+      - name: Run ESLint
         if: env.js_found == 'true'
         run: |
           set -e
           for file in $(find . -name "*.js" -o -name "*.ts"); do
             eslint "$file"
           done
-      - name: Run JS files to catch runtime errors
+      - name: Run Node.js files
         if: env.js_found == 'true'
         run: |
           set -e
@@ -144,7 +138,8 @@ jobs:
           done
 
   # ----------------------
-  # Go Code Scan
+  # Other languages (Go, Ruby, PHP, Shell, C/C#, etc.)
+  # Run in parallel
   # ----------------------
   go-code-scan:
     runs-on: ubuntu-latest
@@ -158,7 +153,7 @@ jobs:
           else
             echo "go_found=false" >> $GITHUB_ENV
           fi
-      - name: Run Go scan
+      - name: Run Go checks
         if: env.go_found == 'true'
         run: |
           set -e
@@ -167,115 +162,55 @@ jobs:
             go vet "$file"
           done
 
-  # ----------------------
-  # Ruby Code Scan
-  # ----------------------
   ruby-code-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Find Ruby files
-        id: check-rb
-        run: |
-          if ls **/*.rb 1> /dev/null 2>&1; then
-            echo "rb_found=true" >> $GITHUB_ENV
-          else
-            echo "rb_found=false" >> $GITHUB_ENV
-          fi
       - name: Run Ruby syntax check
-        if: env.rb_found == 'true'
         run: |
           set -e
           for file in $(find . -name "*.rb"); do
             ruby -c "$file"
           done
 
-  # ----------------------
-  # PHP Code Scan
-  # ----------------------
   php-code-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Find PHP files
-        id: check-php
-        run: |
-          if ls **/*.php 1> /dev/null 2>&1; then
-            echo "php_found=true" >> $GITHUB_ENV
-          else
-            echo "php_found=false" >> $GITHUB_ENV
-          fi
       - name: Run PHP syntax check
-        if: env.php_found == 'true'
         run: |
           set -e
           for file in $(find . -name "*.php"); do
             php -l "$file"
           done
 
-  # ----------------------
-  # Shell Script Scan
-  # ----------------------
   shell-code-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Find Shell scripts
-        id: check-sh
-        run: |
-          if ls **/*.sh 1> /dev/null 2>&1; then
-            echo "sh_found=true" >> $GITHUB_ENV
-          else
-            echo "sh_found=false" >> $GITHUB_ENV
-          fi
       - name: Run ShellCheck
-        if: env.sh_found == 'true'
         run: |
           set -e
           for file in $(find . -name "*.sh"); do
             shellcheck "$file"
           done
 
-  # ----------------------
-  # C / C++ Code Scan
-  # ----------------------
   c-cpp-code-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Find C/C++ files
-        id: check-c
-        run: |
-          if ls **/*.c **/*.cpp 1> /dev/null 2>&1; then
-            echo "c_found=true" >> $GITHUB_ENV
-          else
-            echo "c_found=false" >> $GITHUB_ENV
-          fi
       - name: Run C/C++ syntax check
-        if: env.c_found == 'true'
         run: |
           set -e
           for file in $(find . -name "*.c" -o -name "*.cpp"); do
             gcc -fsyntax-only "$file"
           done
 
-  # ----------------------
-  # C# Code Scan
-  # ----------------------
   cs-code-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Find C# files
-        id: check-cs
-        run: |
-          if ls **/*.cs 1> /dev/null 2>&1; then
-            echo "cs_found=true" >> $GITHUB_ENV
-          else
-            echo "cs_found=false" >> $GITHUB_ENV
-          fi
       - name: Run C# compile check
-        if: env.cs_found == 'true'
         run: |
           set -e
           for file in $(find . -name "*.cs"); do
