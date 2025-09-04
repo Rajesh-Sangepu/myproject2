@@ -106,11 +106,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v3
         with:
           node-version: '20'
-
       - name: Create ESLint flat config for Node
         run: |
           echo "export default [
@@ -127,15 +125,12 @@ jobs:
               rules: { 'no-undef': 'error' }
             }
           ];" > eslint.config.js
-
       - name: Install ESLint
         run: npm install -g eslint
-
       - name: ESLint linting
         run: |
           set -e
           npx eslint . --ext .js,.ts --max-warnings=0
-
       - name: Run Node.js files
         run: |
           set -e
@@ -159,14 +154,15 @@ jobs:
           else
             echo "go_found=false" >> $GITHUB_ENV
           fi
-      - name: Run Go checks
+      - name: Run Go scan
         if: env.go_found == 'true'
         run: |
           set -e
           for file in $(find . -name "*.go"); do
             go fmt "$file"
-            go vet "$file"
           done
+          go build ./...
+          go vet ./...
 
   # ----------------------
   # Ruby Scan
