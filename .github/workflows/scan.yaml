@@ -1,4 +1,5 @@
 name: Security & Code Scan on PR
+
 on:
   pull_request:
     branches: [ main ]
@@ -11,8 +12,7 @@ jobs:
   trivy-secret-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Run Trivy secret scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -28,8 +28,7 @@ jobs:
   trivy-vuln-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Run Trivy repo scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -44,8 +43,7 @@ jobs:
   python-code-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Find Python files
         id: check-python
         run: |
@@ -61,7 +59,6 @@ jobs:
       - name: Run Python files
         if: env.python_found == 'true'
         run: |
-          set -e
           for file in $(find . -name "*.py"); do
             echo "Running $file"
             python "$file"
@@ -82,8 +79,7 @@ jobs:
   java-code-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Check for Java files
         id: check-java
         run: |
@@ -92,9 +88,8 @@ jobs:
           else
             echo "java_found=false" >> $GITHUB_ENV
           fi
-      - name: Setup JDK
+      - uses: actions/setup-java@v3
         if: env.java_found == 'true'
-        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -105,7 +100,7 @@ jobs:
           for file in $(find . -name "*.java"); do
             classname=$(basename "$file" .java)
             javac -d build "$file"
-            java -cp build "$classname" || true
+            java -cp build "$classname"
           done
 
   # ----------------------
@@ -114,8 +109,7 @@ jobs:
   js-ts-code-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Find JS/TS files
         id: check-js
         run: |
@@ -127,11 +121,18 @@ jobs:
       - name: Install ESLint
         if: env.js_found == 'true'
         run: npm install -g eslint
-      - name: Run ESLint
+      - name: Run ESLint for syntax & linting
         if: env.js_found == 'true'
         run: |
           for file in $(find . -name "*.js" -o -name "*.ts"); do
-            eslint "$file" || true
+            eslint "$file"
+          done
+      - name: Run JS files to catch runtime errors
+        if: env.js_found == 'true'
+        run: |
+          for file in $(find . -name "*.js"); do
+            echo "Running $file"
+            node "$file"
           done
 
   # ----------------------
@@ -140,8 +141,7 @@ jobs:
   go-code-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Find Go files
         id: check-go
         run: |
@@ -155,7 +155,7 @@ jobs:
         run: |
           for file in $(find . -name "*.go"); do
             go fmt "$file"
-            go vet "$file" || true
+            go vet "$file"
           done
 
   # ----------------------
@@ -164,8 +164,7 @@ jobs:
   ruby-code-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Find Ruby files
         id: check-rb
         run: |
@@ -187,8 +186,7 @@ jobs:
   php-code-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Find PHP files
         id: check-php
         run: |
@@ -210,8 +208,7 @@ jobs:
   shell-code-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Find Shell scripts
         id: check-sh
         run: |
@@ -224,7 +221,7 @@ jobs:
         if: env.sh_found == 'true'
         run: |
           for file in $(find . -name "*.sh"); do
-            shellcheck "$file" || true
+            shellcheck "$file"
           done
 
   # ----------------------
@@ -233,8 +230,7 @@ jobs:
   c-cpp-code-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Find C/C++ files
         id: check-c
         run: |
@@ -247,7 +243,7 @@ jobs:
         if: env.c_found == 'true'
         run: |
           for file in $(find . -name "*.c" -o -name "*.cpp"); do
-            gcc -fsyntax-only "$file" || true
+            gcc -fsyntax-only "$file"
           done
 
   # ----------------------
@@ -256,8 +252,7 @@ jobs:
   cs-code-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Find C# files
         id: check-cs
         run: |
@@ -270,85 +265,5 @@ jobs:
         if: env.cs_found == 'true'
         run: |
           for file in $(find . -name "*.cs"); do
-            mcs "$file" || true
-          done
-
-  # ----------------------
-  # Dependency-Check for Maven / Gradle
-  # ----------------------
-  dependency-check:
-    runs-on: ubuntu-latest
-    env:
-      NVD_API_KEY: ${{ secrets.NVD_API_KEY || '' }}
-    steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
-      - name: Setup Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-      - name: Install OWASP Dependency-Check
-        run: |
-          curl -L -o dependency-check.zip https://github.com/jeremylong/DependencyCheck/releases/download/v8.3.1/dependency-check-8.3.1-release.zip
-          unzip dependency-check.zip -d dependency-check
-      - name: Run Dependency-Check
-        run: |
-          API_ARG=""
-          if [ -n "$NVD_API_KEY" ]; then
-            API_ARG="--nvdApiKey $NVD_API_KEY"
-          fi
-          ./dependency-check/dependency-check/bin/dependency-check.sh \
-            --project "My Universal Project" \
-            --scan . \
-            --format "HTML" \
-            --out dependency-check-report \
-            $API_ARG \
-            --cveValidForHours 24 \
-            --noupdate || true
-
-  # ----------------------
-  # Catch-All Code Scan
-  # ----------------------
-  catch-all-code-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
-      - name: Install universal tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3 python3-pip nodejs npm shellcheck file
-          pip install flake8 bandit
-          npm install -g eslint
-      - name: Find all non-binary files
-        id: find-files
-        run: |
-          all_files=""
-          for f in $(find . -type f); do
-            if file "$f" | grep -q "text"; then
-              all_files="$all_files $f"
-            fi
-          done
-          echo "all_files=$all_files" >> $GITHUB_ENV
-          echo "Found text files: $all_files"
-      - name: Run Bandit, ShellCheck, ESLint on all text files
-        run: |
-          set -e
-          for file in $all_files; do
-            echo "Scanning $file"
-            # Python
-            if [[ "$file" == *.py ]]; then
-              python3 -m py_compile "$file" || echo "Python syntax issue in $file"
-              bandit -r "$file" -ll -iii || true
-              flake8 "$file" --ignore=E302,E305,W391 || true
-            fi
-            # Shell
-            if [[ "$file" == *.sh ]]; then
-              shellcheck "$file" || true
-            fi
-            # JS/TS
-            if [[ "$file" == *.js || "$file" == *.ts ]]; then
-              eslint "$file" || true
-            fi
+            mcs "$file"
           done
