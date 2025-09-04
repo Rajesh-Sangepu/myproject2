@@ -1,0 +1,138 @@
+name: Security & Code Scan on PR
+on:
+  pull_request:
+    branches: [ main ]
+    types: [opened, synchronize, reopened]
+jobs:
+  # ----------------------
+  # Trivy Secret Scan
+  # ----------------------
+  trivy-secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Run Trivy secret scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scanners: secret
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+  # ----------------------
+  # Trivy Vulnerability Scan for repo files
+  # ----------------------
+  trivy-vuln-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Run Trivy repo scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: repo
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+  # ----------------------
+  # Python Code Scan
+  # ----------------------
+  python-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Find Python files
+        id: check-python
+        run: |
+          shopt -s globstar
+          if ls **/*.py 1> /dev/null 2>&1; then
+            echo "python_found=true" >> $GITHUB_ENV
+          else
+            echo "python_found=false" >> $GITHUB_ENV
+          fi
+      - name: Python syntax check
+        if: env.python_found == 'true'
+        run: python -m py_compile $(find . -name "*.py")
+      - name: Run Python files
+        if: env.python_found == 'true'
+        run: |
+          set -e
+          for file in $(find . -name "*.py"); do
+            echo "Running $file"
+            python "$file"
+          done
+      - name: Install Flake8 & Bandit
+        if: env.python_found == 'true'
+        run: pip install flake8 bandit
+      - name: Run Flake8 linting (ignore blank lines)
+        if: env.python_found == 'true'
+        run: flake8 . --ignore=E302,E305,W391
+      - name: Run Bandit security scan
+        if: env.python_found == 'true'
+        run: bandit -r . -ll -iii
+  # ----------------------
+  # Java Code Scan
+  # ----------------------
+  java-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Check for Java files
+        id: check-java
+        run: |
+          if find . -name "*.java" | grep -q .; then
+            echo "java_found=true" >> $GITHUB_ENV
+          else
+            echo "java_found=false" >> $GITHUB_ENV
+          fi
+      - name: Setup JDK
+        if: env.java_found == 'true'
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Compile & run Java files
+        if: env.java_found == 'true'
+        run: |
+          mkdir -p build
+          for file in $(find . -name "*.java"); do
+            classname=$(basename "$file" .java)
+            javac -d build "$file"
+            java -cp build "$classname" || true
+          done
+  # ----------------------
+  # Dependency-Check for Maven / pom.xml
+  # ----------------------
+  dependency-check:
+    runs-on: ubuntu-latest
+    env:
+      NVD_API_KEY: ${{ secrets.NVD_API_KEY || '' }}
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Install OWASP Dependency-Check
+        run: |
+          curl -L -o dependency-check.zip https://github.com/jeremylong/DependencyCheck/releases/download/v8.3.1/dependency-check-8.3.1-release.zip
+          unzip dependency-check.zip -d dependency-check
+      - name: Run Dependency-Check
+        run: |
+          API_ARG=""
+          if [ -n "$NVD_API_KEY" ]; then
+            API_ARG="--nvdApiKey $NVD_API_KEY"
+          fi
+          ./dependency-check/dependency-check/bin/dependency-check.sh \
+            --project "My Maven Project" \
+            --scan . \
+            --format "HTML" \
+            --out dependency-check-report \
+            $API_ARG \
+            --cveValidForHours 24 \
+            --noupdate || true
