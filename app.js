@@ -1,16 +1,37 @@
-// file: runtime-errors.js
+// file: app.js
 
-// 1️⃣ Reference Error
-console.log(nonExistentVar); // variable is not defined
+// Correct function syntax
+function add(a, b) {
+  return a + b;
+}
 
-// 2️⃣ Type Error
+// Reference variables properly
+let myVar = 10;
+console.log(myVar); // no undefined variables
+
+// Correct type usage
 let num = 42;
-num.toUpperCase(); // Cannot call toUpperCase() on a number
+console.log(num.toString()); // number converted to string safely
 
-// 3️⃣ Logical runtime error
+// Correct array access
 let arr = [1, 2, 3];
-console.log(arr[5].toString()); // Accessing undefined element
+if (arr[2] !== undefined) {
+  console.log(arr[2].toString()); // safely accessing existing element
+}
 
-// 4️⃣ Typo in object
+// Correct object property
 const obj = { name: "Alice" };
-console.log(obj.nam); // undefined property access
+console.log(obj.name); // correct property access
+
+// Node globals used correctly
+const fs = require('fs');
+fs.readFile('example.txt', 'utf8', (err, data) => {
+  if (err) {
+    console.log("File read error:", err.message);
+  } else {
+    console.log(data);
+  }
+});
+
+// Correct console usage
+console.log("All code is error-free!");
