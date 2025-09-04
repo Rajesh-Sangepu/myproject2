@@ -138,7 +138,7 @@ jobs:
           done
 
   # ----------------------
-  # Go Scan (compile + runtime)
+  # Go Scan
   # ----------------------
   go-code-scan:
     runs-on: ubuntu-latest
@@ -153,8 +153,7 @@ jobs:
           if [ ! -f go.mod ]; then
             go mod init myproject
           fi
-      - name: Tidy Go module
-        run: go mod tidy
+          go mod tidy
       - name: Find Go files
         id: check-go
         run: |
@@ -163,18 +162,19 @@ jobs:
           else
             echo "go_found=false" >> $GITHUB_ENV
           fi
-      - name: Compile and run Go checks
+      - name: Compile and vet Go code
         if: env.go_found == 'true'
         run: |
           set -e
-          for file in $(find . -name "*.go"); do
-            echo "Checking $file"
-            go build "$file"
-            go vet "$file"
-            if grep -q '^package main' "$file"; then
-              go run "$file"
-            fi
-          done
+          go fmt ./...
+          go build ./...   # fails on syntax/type/undefined errors
+          go vet ./...     # extra static analysis
+      - name: Run Go main package (runtime check)
+        if: env.go_found == 'true'
+        run: |
+          set -e
+          if [ -f main.go ] || grep -q '^package main' $(find . -name "*.go"); then
+            go run .         # fails on runtime panics like out-of-range
 
   # ----------------------
   # Ruby Scan
