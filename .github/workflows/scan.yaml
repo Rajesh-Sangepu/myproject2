@@ -100,7 +100,7 @@ jobs:
           echo "Java compilation successful"
 
   # ----------------------
-  # JS/TS Scan (Node-aware, ESLint v9 flat config)
+  # JS/TS Scan
   # ----------------------
   js-ts-code-scan:
     runs-on: ubuntu-latest
@@ -155,7 +155,7 @@ jobs:
           fi
       - name: Tidy Go module
         run: go mod tidy
-      - name: Check if Go files exist
+      - name: Find Go files
         id: check-go
         run: |
           if ls **/*.go 1> /dev/null 2>&1; then
@@ -163,20 +163,16 @@ jobs:
           else
             echo "go_found=false" >> $GITHUB_ENV
           fi
-      - name: Compile and Vet All Packages
+      - name: Compile and run Go checks
         if: env.go_found == 'true'
         run: |
           set -e
-          go build ./...
-          go vet ./...
-      - name: Run All Main Packages for Runtime Errors
-        if: env.go_found == 'true'
-        run: |
-          set -e
-          for pkg in $(go list ./... | grep -v /vendor/); do
-            if go list -f '{{.Name}}' "$pkg" | grep -q '^main$'; then
-              echo "Running main package: $pkg"
-              go run "$pkg"
+          for file in $(find . -name "*.go"); do
+            echo "Checking $file"
+            go build "$file"
+            go vet "$file"
+            if grep -q '^package main' "$file"; then
+              go run "$file"
             fi
           done
 
