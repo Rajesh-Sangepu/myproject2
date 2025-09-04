@@ -140,7 +140,7 @@ jobs:
           done
 
   # ----------------------
-  # Go Scan
+  # Go Scan (compile + runtime)
   # ----------------------
   go-code-scan:
     runs-on: ubuntu-latest
@@ -154,7 +154,7 @@ jobs:
           else
             echo "go_found=false" >> $GITHUB_ENV
           fi
-      - name: Run Go scan
+      - name: Compile Go files
         if: env.go_found == 'true'
         run: |
           set -e
@@ -163,6 +163,13 @@ jobs:
           done
           go build ./...
           go vet ./...
+      - name: Run Go files (catch runtime panics)
+        if: env.go_found == 'true'
+        run: |
+          set -e
+          for file in $(find . -name "*.go"); do
+            go run "$file"
+          done
 
   # ----------------------
   # Ruby Scan
