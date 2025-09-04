@@ -100,7 +100,7 @@ jobs:
           echo "Java compilation successful"
 
   # ----------------------
-  # JS/TS Scan
+  # JS/TS Scan (Node-aware, ESLint v9 flat config)
   # ----------------------
   js-ts-code-scan:
     runs-on: ubuntu-latest
@@ -138,7 +138,7 @@ jobs:
           done
 
   # ----------------------
-  # Go Scan (strict + runtime)
+  # Go Scan (compile + runtime)
   # ----------------------
   go-code-scan:
     runs-on: ubuntu-latest
@@ -153,7 +153,9 @@ jobs:
           if [ ! -f go.mod ]; then
             go mod init myproject
           fi
-      - name: Find Go files
+      - name: Tidy Go module
+        run: go mod tidy
+      - name: Check if Go files exist
         id: check-go
         run: |
           if ls **/*.go 1> /dev/null 2>&1; then
@@ -161,23 +163,20 @@ jobs:
           else
             echo "go_found=false" >> $GITHUB_ENV
           fi
-      - name: Compile all Go files
+      - name: Compile and Vet All Packages
         if: env.go_found == 'true'
         run: |
           set -e
-          for file in $(find . -name "*.go"); do
-            echo "Compiling $file"
-            go build "$file"
-          done
+          go build ./...
           go vet ./...
-      - name: Run main packages for runtime errors
+      - name: Run All Main Packages for Runtime Errors
         if: env.go_found == 'true'
         run: |
           set -e
-          for dir in $(find . -type f -name "*.go" -exec dirname {} \; | sort -u); do
-            if grep -q "package main" "$dir"/*.go; then
-              echo "Running main package in $dir"
-              go run "$dir"
+          for pkg in $(go list ./... | grep -v /vendor/); do
+            if go list -f '{{.Name}}' "$pkg" | grep -q '^main$'; then
+              echo "Running main package: $pkg"
+              go run "$pkg"
             fi
           done
 
