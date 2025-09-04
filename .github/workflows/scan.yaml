@@ -113,12 +113,12 @@ jobs:
           sudo apt-get install -y nodejs npm
           npm install -g eslint
 
-      - name: ESLint linting
+      - name: ESLint linting (fail on undefined variables / typos)
         run: |
           set -e
-          npx eslint . --ext .js,.ts --rule 'no-undef: error' --max-warnings=0
+          npx eslint . --ext .js,.ts --rule 'no-undef: error' --max-warnings=0 --no-eslintrc
 
-      - name: Run Node.js files
+      - name: Run Node.js files (fail on any error)
         run: |
           set -e
           for file in $(find . -name "*.js"); do
