@@ -1,4 +1,4 @@
-<?php
+<php
 // file: correct-sample.php
 
 // Correct syntax
