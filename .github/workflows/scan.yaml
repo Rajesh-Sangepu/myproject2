@@ -100,7 +100,7 @@ jobs:
           echo "Java compilation successful"
 
   # ----------------------
-  # JS/TS Scan (fast Node-aware)
+  # JS/TS Scan (Node-aware, ESLint v9 flat config)
   # ----------------------
   js-ts-code-scan:
     runs-on: ubuntu-latest
@@ -111,11 +111,19 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Create minimal Node-aware ESLint config
+      - name: Create ESLint flat config for Node
         run: |
           echo "export default [
             {
-              env: { node: true, es2021: true },
+              languageOptions: {
+                globals: {
+                  require: 'readonly',
+                  console: 'readonly',
+                  process: 'readonly',
+                  module: 'readonly',
+                  __dirname: 'readonly'
+                }
+              },
               rules: { 'no-undef': 'error' }
             }
           ];" > eslint.config.js
