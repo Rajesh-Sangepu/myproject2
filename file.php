@@ -1,4 +1,4 @@
-<php
+<?php
 // file: correct-sample.php
 
 // Correct syntax
@@ -25,4 +25,4 @@ $arr = [1, 2, 3];
 echo $arr[0];  // safe access
 
 $obj = (object)["name" => "Bob"];
-echo $obj->name;  // safe access
+cho $obj->name;  // safe access
