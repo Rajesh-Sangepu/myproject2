@@ -100,7 +100,7 @@ jobs:
           echo "Java compilation successful"
 
   # ----------------------
-  # JS/TS Scan (ESLint v9+ compatible, bulletproof)
+  # JS/TS Scan (ESLint v9+ compatible)
   # ----------------------
   js-ts-code-scan:
     runs-on: ubuntu-latest
@@ -118,23 +118,12 @@ jobs:
           set -e
           npx eslint . --ext .js,.ts --rule 'no-undef: error' --max-warnings=0
 
-      - name: Run Node.js files (fail on any error)
+      - name: Run Node.js files (fail on any runtime error)
         run: |
           set -e
           for file in $(find . -name "*.js"); do
             echo "Running $file"
-            node -e "
-              process.on('uncaughtException', err => { 
-                console.error(err); 
-                process.exit(1); 
-              });
-              process.on('unhandledRejection', err => { 
-                console.error(err); 
-                process.exit(1); 
-              });
-              const path = require('path');
-              require(path.resolve('$PWD/$file'));
-            "
+            node "$file"
           done
 
   # ----------------------
