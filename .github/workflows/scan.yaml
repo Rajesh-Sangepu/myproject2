@@ -44,32 +44,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Find Python files
-        id: check-python
-        run: |
-          shopt -s globstar
-          if ls **/*.py 1> /dev/null 2>&1; then
-            echo "python_found=true" >> $GITHUB_ENV
-          else
-            echo "python_found=false" >> $GITHUB_ENV
-          fi
-      - name: Run Python files
-        if: env.python_found == 'true'
+      - name: Install Flake8 & Bandit
+        run: pip install flake8 bandit
+      - name: Run Python syntax check & lint
         run: |
           set -e
           for file in $(find . -name "*.py"); do
             python -m py_compile "$file"
-            echo "Running $file"
-            python "$file"
           done
-      - name: Install Flake8 & Bandit
-        if: env.python_found == 'true'
-        run: pip install flake8 bandit
-      - name: Lint and security scan
-        if: env.python_found == 'true'
-        run: |
           flake8 . --ignore=E302,E305,W391
           bandit -r . -ll -iii
+      - name: Run Python files
+        run: |
+          set -e
+          for file in $(find . -name "*.py"); do
+            python "$file"
+          done
 
   # ----------------------
   # Java Scan
@@ -78,29 +68,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check for Java files
-        id: check-java
-        run: |
-          if find . -name "*.java" | grep -q .; then
-            echo "java_found=true" >> $GITHUB_ENV
-          else
-            echo "java_found=false" >> $GITHUB_ENV
-          fi
       - uses: actions/setup-java@v3
-        if: env.java_found == 'true'
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Compile Java files
-        if: env.java_found == 'true'
+      - name: Compile & run Java files
         run: |
-          mkdir -p build
           set -e
-          javac -d build $(find . -name "*.java")
-          echo "Java compilation successful"
+          mkdir -p build
+          for file in $(find . -name "*.java"); do
+            classname=$(basename "$file" .java)
+            javac -d build "$file"
+            java -cp build "$classname"
+          done
 
   # ----------------------
-  # JS/TS Scan (Node-aware, ESLint v9 flat config)
+  # Go Scan
+  # ----------------------
+  go-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      - name: Ensure Go module exists
+        run: |
+          if [ ! -f go.mod ]; then
+            go mod init myproject
+          fi
+          go mod tidy
+      - name: Compile, vet, and run Go code
+        run: |
+          set -e
+          go fmt ./...
+          go build ./...
+          go vet ./...
+          for dir in $(find . -type f -name "*.go" -exec dirname {} \; | sort -u); do
+            if [ -f "$dir/main.go" ]; then
+              (cd "$dir" && go run .)
+            fi
+          done
+
+  # ----------------------
+  # Node/JS/TS Scan
   # ----------------------
   js-ts-code-scan:
     runs-on: ubuntu-latest
@@ -127,65 +138,13 @@ jobs:
           ];" > eslint.config.js
       - name: Install ESLint
         run: npm install -g eslint
-      - name: ESLint linting
+      - name: Run ESLint
         run: npx eslint . --ext .js,.ts --max-warnings=0
       - name: Run Node.js files
         run: |
           set -e
           for file in $(find . -name "*.js"); do
-            echo "Running $file"
             node "$file"
-          done
-
-  # ----------------------
-  # Go Scan (compile + runtime)
-  # ----------------------
-  go-code-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-      - name: Ensure Go module exists
-        run: |
-          if [ ! -f go.mod ]; then
-            go mod init myproject
-          fi
-      - name: Find Go files
-        id: check-go
-        run: |
-          if ls **/*.go 1> /dev/null 2>&1; then
-            echo "go_found=true" >> $GITHUB_ENV
-          else
-            echo "go_found=false" >> $GITHUB_ENV
-          fi
-      - name: Compile and vet Go code
-        if: env.go_found == 'true'
-        run: |
-          set -e
-          go fmt ./...
-          go build ./...
-          go vet ./...
-      - name: Run Go main package (runtime check)
-        if: env.go_found == 'true'
-        run: |
-          set -e
-          go run .
-
-  # ----------------------
-  # Ruby Scan
-  # ----------------------
-  ruby-code-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run Ruby syntax check
-        run: |
-          set -e
-          for file in $(find . -name "*.rb"); do
-            ruby -c "$file"
           done
 
   # ----------------------
@@ -200,6 +159,20 @@ jobs:
           set -e
           for file in $(find . -name "*.php"); do
             php -l "$file"
+          done
+
+  # ----------------------
+  # Ruby Scan
+  # ----------------------
+  ruby-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Ruby syntax check
+        run: |
+          set -e
+          for file in $(find . -name "*.rb"); do
+            ruby -c "$file"
           done
 
   # ----------------------
