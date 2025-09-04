@@ -96,11 +96,15 @@ jobs:
             go mod init myproject
           fi
           go mod tidy
-      - name: Compile, vet, and run Go code
+      - name: Compile, vet, and run Go code (ignore C/C++ files)
         run: |
           set -e
           go fmt ./...
-          go build ./...
+          # Build only .go files, ignore .c/.cpp
+          find . -type f -name "*.go" > go_files.txt
+          while read -r file; do
+            go build "$file"
+          done < go_files.txt
           go vet ./...
           for dir in $(find . -type f -name "*.go" -exec dirname {} \; | sort -u); do
             if [ -f "$dir/main.go" ]; then
