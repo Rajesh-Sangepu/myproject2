@@ -100,7 +100,7 @@ jobs:
           echo "Java compilation successful"
 
   # ----------------------
-  # JS/TS Scan (fixed)
+  # JS/TS Scan (reliable)
   # ----------------------
   js-ts-code-scan:
     runs-on: ubuntu-latest
@@ -114,27 +114,28 @@ jobs:
           else
             echo "js_found=false" >> $GITHUB_ENV
           fi
-      - name: Install ESLint
+      - name: Install Node & ESLint
         if: env.js_found == 'true'
-        run: npm install -g eslint
-      - name: Run ESLint (catch undefined variables)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nodejs npm
+          npm install -g eslint
+      - name: ESLint linting
         if: env.js_found == 'true'
         run: |
           set -e
           echo '{
-            "env": {"node": true, "es6": true},
-            "rules": {"no-undef": "error"}
+            "env": { "node": true, "es6": true },
+            "rules": { "no-undef": "error" }
           }' > .eslintrc-temp.json
-          for file in $(find . -name "*.js" -o -name "*.ts"); do
-            eslint -c .eslintrc-temp.json "$file"
-          done
-      - name: Run Node.js files (fail on runtime errors)
+          npx eslint . --ext .js,.ts --config .eslintrc-temp.json --max-warnings=0
+      - name: Run Node.js files
         if: env.js_found == 'true'
         run: |
           set -e
           for file in $(find . -name "*.js"); do
             echo "Running $file"
-            node -e "process.on('uncaughtException', err => { console.error(err); process.exit(1); }); require('$PWD/$file')"
+            node "$file"
           done
 
   # ----------------------
