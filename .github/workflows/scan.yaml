@@ -52,7 +52,6 @@ jobs:
             echo "python_found=true" >> $GITHUB_ENV
           else
             echo "python_found=false" >> $GITHUB_ENV
-          fi
       - name: Run Python files
         if: env.python_found == 'true'
         run: |
@@ -85,7 +84,6 @@ jobs:
             echo "java_found=true" >> $GITHUB_ENV
           else
             echo "java_found=false" >> $GITHUB_ENV
-          fi
       - uses: actions/setup-java@v3
         if: env.java_found == 'true'
         with:
@@ -138,7 +136,7 @@ jobs:
           done
 
   # ----------------------
-  # Go Scan
+  # Go Scan (compile + vet + runtime)
   # ----------------------
   go-code-scan:
     runs-on: ubuntu-latest
@@ -161,20 +159,27 @@ jobs:
             echo "go_found=true" >> $GITHUB_ENV
           else
             echo "go_found=false" >> $GITHUB_ENV
-          fi
       - name: Compile and vet Go code
         if: env.go_found == 'true'
         run: |
           set -e
+          echo "Running go fmt..."
           go fmt ./...
-          go build ./...   # fails on syntax/type/undefined errors
-          go vet ./...     # extra static analysis
-      - name: Run Go main package (runtime check)
+          echo "Running go build..."
+          go build ./...       # fails on syntax/type/undefined
+          echo "Running go vet..."
+          go vet ./...
+      - name: Run Go main package for runtime panics
         if: env.go_found == 'true'
         run: |
           set -e
-          if [ -f main.go ] || grep -q '^package main' $(find . -name "*.go"); then
-            go run .         # fails on runtime panics like out-of-range
+          echo "Running go run for main packages..."
+          for dir in $(find . -type f -name "*.go" -exec dirname {} \; | sort -u); do
+            if [ -f "$dir/main.go" ]; then
+              echo "Running $dir/main.go..."
+              (cd "$dir" && go run .)
+            fi
+          done
 
   # ----------------------
   # Ruby Scan
