@@ -1,16 +1,16 @@
-// file: error-types.js
+// file: multi-error.js
 
 // 1️⃣ Syntax Error
-function add(a, b {
-  return a + b; // Missing closing parenthesis
+function add(a, b {   // Missing closing parenthesis
+  return a + b;
 }
 
 // 2️⃣ Reference Error
-console.log(myVariable); // myVariable is not defined
+console.log(myVar); // myVar is not defined
 
 // 3️⃣ Type Error
 let num = 5;
-num.toUpperCase(); // You cannot call toUpperCase() on a number
+num.toUpperCase(); // Cannot call toUpperCase() on a number
 
 // 4️⃣ Logical runtime error
 let arr = [1, 2, 3];
