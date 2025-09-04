@@ -13,3 +13,4 @@ fs.readFile('nonexistent.txt', 'utf8', (err, data) => {
 // Intentional typo error
 console.log("This line has a typo!"); // Should be console.lo
 
+
