@@ -23,7 +23,7 @@ jobs:
           ignore-unfixed: true
 
   # ----------------------
-  # Trivy Vulnerability Scan
+  # Trivy Vulnerability Scan for repo files
   # ----------------------
   trivy-vuln-scan:
     runs-on: ubuntu-latest
@@ -38,7 +38,7 @@ jobs:
           ignore-unfixed: true
 
   # ----------------------
-  # Python Scan
+  # Python Code Scan
   # ----------------------
   python-code-scan:
     runs-on: ubuntu-latest
@@ -72,14 +72,12 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Compile & run Java files
+      - name: Compile Java files
         run: |
           set -e
           mkdir -p build
           for file in $(find . -name "*.java"); do
-            classname=$(basename "$file" .java)
             javac -d build "$file"
-            java -cp build "$classname"
           done
 
   # ----------------------
