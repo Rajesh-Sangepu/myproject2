@@ -72,7 +72,7 @@ jobs:
           bandit -r . -ll -iii
 
   # ----------------------
-  # Java Scan (fixed)
+  # Java Scan (robust)
   # ----------------------
   java-code-scan:
     runs-on: ubuntu-latest
@@ -98,7 +98,13 @@ jobs:
           javac -d build $(find . -name "*.java")
           set -e
           for file in $(find . -name "*.java"); do
-            fqcn=$(sed 's|^\./||; s|/|.|g; s|\.java$||' <<< "$file")
+            classname=$(basename "$file" .java)
+            package=$(grep -E '^package ' "$file" | cut -d' ' -f2 | sed 's/;//')
+            if [ -n "$package" ]; then
+              fqcn="$package.$classname"
+            else
+              fqcn="$classname"
+            fi
             echo "Running $fqcn"
             java -cp build "$fqcn"
           done
@@ -138,8 +144,7 @@ jobs:
           done
 
   # ----------------------
-  # Other languages (Go, Ruby, PHP, Shell, C/C#, etc.)
-  # Run in parallel
+  # Go Scan
   # ----------------------
   go-code-scan:
     runs-on: ubuntu-latest
@@ -162,6 +167,9 @@ jobs:
             go vet "$file"
           done
 
+  # ----------------------
+  # Ruby Scan
+  # ----------------------
   ruby-code-scan:
     runs-on: ubuntu-latest
     steps:
@@ -173,6 +181,9 @@ jobs:
             ruby -c "$file"
           done
 
+  # ----------------------
+  # PHP Scan
+  # ----------------------
   php-code-scan:
     runs-on: ubuntu-latest
     steps:
@@ -184,6 +195,9 @@ jobs:
             php -l "$file"
           done
 
+  # ----------------------
+  # Shell Scan
+  # ----------------------
   shell-code-scan:
     runs-on: ubuntu-latest
     steps:
@@ -195,6 +209,9 @@ jobs:
             shellcheck "$file"
           done
 
+  # ----------------------
+  # C / C++ Scan
+  # ----------------------
   c-cpp-code-scan:
     runs-on: ubuntu-latest
     steps:
@@ -206,6 +223,9 @@ jobs:
             gcc -fsyntax-only "$file"
           done
 
+  # ----------------------
+  # C# Scan
+  # ----------------------
   cs-code-scan:
     runs-on: ubuntu-latest
     steps:
