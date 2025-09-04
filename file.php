@@ -1,15 +1,28 @@
 <?php
-// file: error-sample.php
+// file: correct-sample.php
 
-// 1️⃣ Syntax Error (missing semicolon)
-echo "Hello World"  
+// Correct syntax
+echo "Hello World";  // semicolon added
 
-// 2️⃣ Undefined variable
-echo $undefinedVar;
+// Defined variables
+$definedVar = "I exist!";
+echo $definedVar;
 
-// 3️⃣ Type Error
+// Type-safe operations
 $number = 10;
-$string = $number + "abc"; // PHP will throw a warning/error depending on strict mode
+$stringNumber = (string)$number;  // safely convert number to string
+echo $stringNumber;
 
-// 4️⃣ Function call error
-myUndefinedFunction(); // function does not exist
+// Calling only defined functions
+function sayHello($name) {
+    echo "Hello, " . $name . "!";
+}
+
+sayHello("Alice");
+
+// Array and object access
+$arr = [1, 2, 3];
+echo $arr[0];  // safe access
+
+$obj = (object)["name" => "Bob"];
+echo $obj->name;  // safe access
