@@ -100,7 +100,7 @@ jobs:
           echo "Java compilation successful"
 
   # ----------------------
-  # JS/TS Scan (Node-aware, ESLint v9 flat config)
+  # JS/TS Scan
   # ----------------------
   js-ts-code-scan:
     runs-on: ubuntu-latest
@@ -109,7 +109,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '20'
-      - name: Create ESLint flat config for Node
+      - name: Create ESLint flat config
         run: |
           echo "export default [
             {
@@ -128,9 +128,7 @@ jobs:
       - name: Install ESLint
         run: npm install -g eslint
       - name: ESLint linting
-        run: |
-          set -e
-          npx eslint . --ext .js,.ts --max-warnings=0
+        run: npx eslint . --ext .js,.ts --max-warnings=0
       - name: Run Node.js files
         run: |
           set -e
@@ -154,22 +152,18 @@ jobs:
           else
             echo "go_found=false" >> $GITHUB_ENV
           fi
-      - name: Compile Go files
+      - name: Compile Go code
         if: env.go_found == 'true'
         run: |
           set -e
-          for file in $(find . -name "*.go"); do
-            go fmt "$file"
-          done
-          go build ./...
-          go vet ./...
-      - name: Run Go files (catch runtime panics)
+          go fmt ./...
+          go build ./...  # fails on syntax, type, undefined variables
+          go vet ./...    # extra static analysis
+      - name: Run Go main package (catch runtime panics)
         if: env.go_found == 'true'
         run: |
           set -e
-          for file in $(find . -name "*.go"); do
-            go run "$file"
-          done
+          go run .  # fails on runtime panics like out-of-bounds
 
   # ----------------------
   # Ruby Scan
