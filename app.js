@@ -34,4 +34,4 @@ fs.readFile('example.txt', 'utf8', (err, data) => {
 });
 
 // Correct console usage
-console.log("All code is error-free!");
+consol.log("All code is error-free!");
