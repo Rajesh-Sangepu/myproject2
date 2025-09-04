@@ -100,7 +100,7 @@ jobs:
           echo "Java compilation successful"
 
   # ----------------------
-  # JS/TS Scan (bulletproof)
+  # JS/TS Scan (ESLint v9+ compatible, bulletproof)
   # ----------------------
   js-ts-code-scan:
     runs-on: ubuntu-latest
@@ -116,7 +116,7 @@ jobs:
       - name: ESLint linting (fail on undefined variables / typos)
         run: |
           set -e
-          npx eslint . --ext .js,.ts --rule 'no-undef: error' --max-warnings=0 --no-eslintrc
+          npx eslint . --ext .js,.ts --rule 'no-undef: error' --max-warnings=0
 
       - name: Run Node.js files (fail on any error)
         run: |
