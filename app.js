@@ -1,17 +1,16 @@
-// file: multi-error.js
+// file: runtime-errors.js
 
-// 1️⃣ Syntax Error
-function add(a, b {   // Missing closing parenthesis
-  return a + b;
-}
+// 1️⃣ Reference Error
+console.log(nonExistentVar); // variable is not defined
 
-// 2️⃣ Reference Error
-console.log(myVar); // myVar is not defined
-
-// 3️⃣ Type Error
-let num = 5;
+// 2️⃣ Type Error
+let num = 42;
 num.toUpperCase(); // Cannot call toUpperCase() on a number
 
-// 4️⃣ Logical runtime error
+// 3️⃣ Logical runtime error
 let arr = [1, 2, 3];
-console.log(arr[5].toString()); // Accessing undefined index
+console.log(arr[5].toString()); // Accessing undefined element
+
+// 4️⃣ Typo in object
+const obj = { name: "Alice" };
+console.log(obj.nam); // undefined property access
