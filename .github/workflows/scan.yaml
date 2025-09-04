@@ -3,6 +3,7 @@ on:
   pull_request:
     branches: [ main ]
     types: [opened, synchronize, reopened]
+
 jobs:
   # ----------------------
   # Trivy Secret Scan
@@ -10,8 +11,7 @@ jobs:
   trivy-secret-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Run Trivy secret scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -20,14 +20,14 @@ jobs:
           format: table
           exit-code: '1'
           ignore-unfixed: true
+
   # ----------------------
-  # Trivy Vulnerability Scan for repo files
+  # Trivy Vulnerability Scan
   # ----------------------
   trivy-vuln-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Run Trivy repo scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -35,66 +35,76 @@ jobs:
           format: table
           exit-code: '1'
           ignore-unfixed: true
+
   # ----------------------
-  # Python Code Scan
+  # Generic Code Scan
   # ----------------------
-  python-code-scan:
+  code-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
-      - name: Find Python files
-        id: check-python
+      - uses: actions/checkout@v4
+
+      # Detect Python
+      - name: Detect Python
+        id: python-check
         run: |
-          shopt -s globstar
           if ls **/*.py 1> /dev/null 2>&1; then
             echo "python_found=true" >> $GITHUB_ENV
           else
             echo "python_found=false" >> $GITHUB_ENV
           fi
-      - name: Python syntax check
-        if: env.python_found == 'true'
-        run: python -m py_compile $(find . -name "*.py")
-      - name: Run Python files
-        if: env.python_found == 'true'
-        run: |
-          set -e
-          for file in $(find . -name "*.py"); do
-            echo "Running $file"
-            python "$file"
-          done
-      - name: Install Flake8 & Bandit
-        if: env.python_found == 'true'
-        run: pip install flake8 bandit
-      - name: Run Flake8 linting (ignore blank lines)
-        if: env.python_found == 'true'
-        run: flake8 . --ignore=E302,E305,W391
-      - name: Run Bandit security scan
-        if: env.python_found == 'true'
-        run: bandit -r . -ll -iii
-  # ----------------------
-  # Java Code Scan
-  # ----------------------
-  java-code-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
-      - name: Check for Java files
-        id: check-java
+
+      # Detect Java
+      - name: Detect Java
+        id: java-check
         run: |
           if find . -name "*.java" | grep -q .; then
             echo "java_found=true" >> $GITHUB_ENV
           else
             echo "java_found=false" >> $GITHUB_ENV
           fi
-      - name: Setup JDK
+
+      # Detect JavaScript/Node
+      - name: Detect JS/Node
+        id: node-check
+        run: |
+          if ls **/*.js 1> /dev/null 2>&1; then
+            echo "node_found=true" >> $GITHUB_ENV
+          else
+            echo "node_found=false" >> $GITHUB_ENV
+          fi
+
+      # Detect Go
+      - name: Detect Go
+        id: go-check
+        run: |
+          if ls **/*.go 1> /dev/null 2>&1; then
+            echo "go_found=true" >> $GITHUB_ENV
+          else
+            echo "go_found=false" >> $GITHUB_ENV
+          fi
+
+      # ----------------------
+      # Python Scan
+      # ----------------------
+      - name: Python scan
+        if: env.python_found == 'true'
+        run: |
+          python -m pip install --upgrade pip flake8 bandit
+          python -m py_compile $(find . -name "*.py")
+          flake8 . --ignore=E302,E305,W391
+          bandit -r . -ll -iii
+
+      # ----------------------
+      # Java Scan
+      # ----------------------
+      - name: Java scan
         if: env.java_found == 'true'
         uses: actions/setup-java@v3
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
-      - name: Compile & run Java files
+      - name: Compile & run Java
         if: env.java_found == 'true'
         run: |
           mkdir -p build
@@ -103,22 +113,44 @@ jobs:
             javac -d build "$file"
             java -cp build "$classname" || true
           done
+
+      # ----------------------
+      # Node Scan
+      # ----------------------
+      - name: Node scan
+        if: env.node_found == 'true'
+        run: |
+          npm install -g eslint
+          for file in $(find . -name "*.js"); do
+            eslint "$file" || true
+          done
+
+      # ----------------------
+      # Go Scan
+      # ----------------------
+      - name: Go scan
+        if: env.go_found == 'true'
+        run: |
+          sudo apt-get install -y golang
+          for file in $(find . -name "*.go"); do
+            go fmt "$file"
+            go vet "$file" || true
+          done
+
   # ----------------------
-  # Dependency-Check for Maven / pom.xml
+  # Dependency-Check
   # ----------------------
   dependency-check:
     runs-on: ubuntu-latest
     env:
       NVD_API_KEY: ${{ secrets.NVD_API_KEY || '' }}
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
-      - name: Setup Java
-        uses: actions/setup-java@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Install OWASP Dependency-Check
+      - name: Install Dependency-Check
         run: |
           curl -L -o dependency-check.zip https://github.com/jeremylong/DependencyCheck/releases/download/v8.3.1/dependency-check-8.3.1-release.zip
           unzip dependency-check.zip -d dependency-check
@@ -129,7 +161,7 @@ jobs:
             API_ARG="--nvdApiKey $NVD_API_KEY"
           fi
           ./dependency-check/dependency-check/bin/dependency-check.sh \
-            --project "My Maven Project" \
+            --project "My Project" \
             --scan . \
             --format "HTML" \
             --out dependency-check-report \
