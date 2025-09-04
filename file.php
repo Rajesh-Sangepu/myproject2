@@ -25,4 +25,4 @@ $arr = [1, 2, 3];
 echo $arr[0];  // safe access
 
 $obj = (object)["name" => "Bob"];
-cho $obj->name;  // safe access
+echo $obj->name;  // safe access
