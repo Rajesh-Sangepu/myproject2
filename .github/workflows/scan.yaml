@@ -92,7 +92,6 @@ jobs:
           go-version: '1.21'
       - name: Ensure Go module exists
         run: |
-          cd go
           if [ ! -f go.mod ]; then
             go mod init myproject
           fi
@@ -100,7 +99,6 @@ jobs:
       - name: Compile, vet, and run Go code
         run: |
           set -e
-          cd go
           go fmt ./...
           go build ./...
           go vet ./...
@@ -199,7 +197,8 @@ jobs:
       - name: Run C/C++ syntax check
         run: |
           set -e
-          for file in $(find cpp/ -name "*.c" -o -name "*.cpp"); do
+          # Only scan C and C++ files here
+          for file in $(find . -type f \( -name "*.c" -o -name "*.cpp" \)); do
             gcc -fsyntax-only "$file"
           done
 
