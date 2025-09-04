@@ -74,7 +74,7 @@ jobs:
         run: bandit -r . -ll -iii
 
   # ----------------------
-  # Java Code Scan
+  # Java Code Scan (fixed)
   # ----------------------
   java-code-scan:
     runs-on: ubuntu-latest
@@ -93,18 +93,22 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Compile & run Java files
+      - name: Compile all Java files
         if: env.java_found == 'true'
         run: |
           mkdir -p build
+          javac -d build $(find . -name "*.java")
+      - name: Run Java files (catch runtime errors)
+        if: env.java_found == 'true'
+        run: |
           for file in $(find . -name "*.java"); do
-            classname=$(basename "$file" .java)
-            javac -d build "$file"
-            java -cp build "$classname"
+            fqcn=$(sed 's|^\./||; s|/|.|g; s|\.java$||' <<< "$file")
+            echo "Running $fqcn"
+            java -cp build "$fqcn"
           done
 
   # ----------------------
-  # JavaScript / TypeScript Scan
+  # JavaScript / TypeScript Scan (fixed)
   # ----------------------
   js-ts-code-scan:
     runs-on: ubuntu-latest
