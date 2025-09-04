@@ -11,7 +11,8 @@ jobs:
   trivy-secret-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout PR code
+        uses: actions/checkout@v4
       - name: Run Trivy secret scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -27,7 +28,8 @@ jobs:
   trivy-vuln-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout PR code
+        uses: actions/checkout@v4
       - name: Run Trivy repo scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -37,74 +39,66 @@ jobs:
           ignore-unfixed: true
 
   # ----------------------
-  # Generic Code Scan
+  # Python Code Scan
   # ----------------------
-  code-scan:
+  python-code-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      # Detect Python
-      - name: Detect Python
-        id: python-check
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Find Python files
+        id: check-python
         run: |
+          shopt -s globstar
           if ls **/*.py 1> /dev/null 2>&1; then
             echo "python_found=true" >> $GITHUB_ENV
           else
             echo "python_found=false" >> $GITHUB_ENV
           fi
+      - name: Python syntax check
+        if: env.python_found == 'true'
+        run: python -m py_compile $(find . -name "*.py")
+      - name: Run Python files
+        if: env.python_found == 'true'
+        run: |
+          set -e
+          for file in $(find . -name "*.py"); do
+            echo "Running $file"
+            python "$file"
+          done
+      - name: Install Flake8 & Bandit
+        if: env.python_found == 'true'
+        run: pip install flake8 bandit
+      - name: Run Flake8 linting
+        if: env.python_found == 'true'
+        run: flake8 . --ignore=E302,E305,W391
+      - name: Run Bandit security scan
+        if: env.python_found == 'true'
+        run: bandit -r . -ll -iii
 
-      # Detect Java
-      - name: Detect Java
-        id: java-check
+  # ----------------------
+  # Java Code Scan
+  # ----------------------
+  java-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Check for Java files
+        id: check-java
         run: |
           if find . -name "*.java" | grep -q .; then
             echo "java_found=true" >> $GITHUB_ENV
           else
             echo "java_found=false" >> $GITHUB_ENV
           fi
-
-      # Detect JavaScript/Node
-      - name: Detect JS/Node
-        id: node-check
-        run: |
-          if ls **/*.js 1> /dev/null 2>&1; then
-            echo "node_found=true" >> $GITHUB_ENV
-          else
-            echo "node_found=false" >> $GITHUB_ENV
-          fi
-
-      # Detect Go
-      - name: Detect Go
-        id: go-check
-        run: |
-          if ls **/*.go 1> /dev/null 2>&1; then
-            echo "go_found=true" >> $GITHUB_ENV
-          else
-            echo "go_found=false" >> $GITHUB_ENV
-          fi
-
-      # ----------------------
-      # Python Scan
-      # ----------------------
-      - name: Python scan
-        if: env.python_found == 'true'
-        run: |
-          python -m pip install --upgrade pip flake8 bandit
-          python -m py_compile $(find . -name "*.py")
-          flake8 . --ignore=E302,E305,W391
-          bandit -r . -ll -iii
-
-      # ----------------------
-      # Java Scan
-      # ----------------------
-      - name: Java scan
+      - name: Setup JDK
         if: env.java_found == 'true'
         uses: actions/setup-java@v3
         with:
-          distribution: temurin
+          distribution: 'temurin'
           java-version: '17'
-      - name: Compile & run Java
+      - name: Compile & run Java files
         if: env.java_found == 'true'
         run: |
           mkdir -p build
@@ -114,43 +108,187 @@ jobs:
             java -cp build "$classname" || true
           done
 
-      # ----------------------
-      # Node Scan
-      # ----------------------
-      - name: Node scan
-        if: env.node_found == 'true'
+  # ----------------------
+  # JavaScript / TypeScript Scan
+  # ----------------------
+  js-ts-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Find JS/TS files
+        id: check-js
         run: |
-          npm install -g eslint
-          for file in $(find . -name "*.js"); do
+          if ls **/*.js **/*.ts 1> /dev/null 2>&1; then
+            echo "js_found=true" >> $GITHUB_ENV
+          else
+            echo "js_found=false" >> $GITHUB_ENV
+          fi
+      - name: Install ESLint
+        if: env.js_found == 'true'
+        run: npm install -g eslint
+      - name: Run ESLint
+        if: env.js_found == 'true'
+        run: |
+          for file in $(find . -name "*.js" -o -name "*.ts"); do
             eslint "$file" || true
           done
 
-      # ----------------------
-      # Go Scan
-      # ----------------------
-      - name: Go scan
+  # ----------------------
+  # Go Code Scan
+  # ----------------------
+  go-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Find Go files
+        id: check-go
+        run: |
+          if ls **/*.go 1> /dev/null 2>&1; then
+            echo "go_found=true" >> $GITHUB_ENV
+          else
+            echo "go_found=false" >> $GITHUB_ENV
+          fi
+      - name: Run Go scan
         if: env.go_found == 'true'
         run: |
-          sudo apt-get install -y golang
           for file in $(find . -name "*.go"); do
             go fmt "$file"
             go vet "$file" || true
           done
 
   # ----------------------
-  # Dependency-Check
+  # Ruby Code Scan
+  # ----------------------
+  ruby-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Find Ruby files
+        id: check-rb
+        run: |
+          if ls **/*.rb 1> /dev/null 2>&1; then
+            echo "rb_found=true" >> $GITHUB_ENV
+          else
+            echo "rb_found=false" >> $GITHUB_ENV
+          fi
+      - name: Run Ruby syntax check
+        if: env.rb_found == 'true'
+        run: |
+          for file in $(find . -name "*.rb"); do
+            ruby -c "$file"
+          done
+
+  # ----------------------
+  # PHP Code Scan
+  # ----------------------
+  php-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Find PHP files
+        id: check-php
+        run: |
+          if ls **/*.php 1> /dev/null 2>&1; then
+            echo "php_found=true" >> $GITHUB_ENV
+          else
+            echo "php_found=false" >> $GITHUB_ENV
+          fi
+      - name: Run PHP syntax check
+        if: env.php_found == 'true'
+        run: |
+          for file in $(find . -name "*.php"); do
+            php -l "$file"
+          done
+
+  # ----------------------
+  # Shell Script Scan
+  # ----------------------
+  shell-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Find Shell scripts
+        id: check-sh
+        run: |
+          if ls **/*.sh 1> /dev/null 2>&1; then
+            echo "sh_found=true" >> $GITHUB_ENV
+          else
+            echo "sh_found=false" >> $GITHUB_ENV
+          fi
+      - name: Run ShellCheck
+        if: env.sh_found == 'true'
+        run: |
+          for file in $(find . -name "*.sh"); do
+            shellcheck "$file" || true
+          done
+
+  # ----------------------
+  # C / C++ Code Scan
+  # ----------------------
+  c-cpp-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Find C/C++ files
+        id: check-c
+        run: |
+          if ls **/*.c **/*.cpp 1> /dev/null 2>&1; then
+            echo "c_found=true" >> $GITHUB_ENV
+          else
+            echo "c_found=false" >> $GITHUB_ENV
+          fi
+      - name: Run C/C++ syntax check
+        if: env.c_found == 'true'
+        run: |
+          for file in $(find . -name "*.c" -o -name "*.cpp"); do
+            gcc -fsyntax-only "$file" || true
+          done
+
+  # ----------------------
+  # C# Code Scan
+  # ----------------------
+  cs-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Find C# files
+        id: check-cs
+        run: |
+          if ls **/*.cs 1> /dev/null 2>&1; then
+            echo "cs_found=true" >> $GITHUB_ENV
+          else
+            echo "cs_found=false" >> $GITHUB_ENV
+          fi
+      - name: Run C# compile check
+        if: env.cs_found == 'true'
+        run: |
+          for file in $(find . -name "*.cs"); do
+            mcs "$file" || true
+          done
+
+  # ----------------------
+  # Dependency-Check for Maven / Gradle
   # ----------------------
   dependency-check:
     runs-on: ubuntu-latest
     env:
       NVD_API_KEY: ${{ secrets.NVD_API_KEY || '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Install Dependency-Check
+      - name: Install OWASP Dependency-Check
         run: |
           curl -L -o dependency-check.zip https://github.com/jeremylong/DependencyCheck/releases/download/v8.3.1/dependency-check-8.3.1-release.zip
           unzip dependency-check.zip -d dependency-check
@@ -161,10 +299,56 @@ jobs:
             API_ARG="--nvdApiKey $NVD_API_KEY"
           fi
           ./dependency-check/dependency-check/bin/dependency-check.sh \
-            --project "My Project" \
+            --project "My Universal Project" \
             --scan . \
             --format "HTML" \
             --out dependency-check-report \
             $API_ARG \
             --cveValidForHours 24 \
             --noupdate || true
+
+  # ----------------------
+  # Catch-All Code Scan
+  # ----------------------
+  catch-all-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+      - name: Install universal tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip nodejs npm shellcheck file
+          pip install flake8 bandit
+          npm install -g eslint
+      - name: Find all non-binary files
+        id: find-files
+        run: |
+          all_files=""
+          for f in $(find . -type f); do
+            if file "$f" | grep -q "text"; then
+              all_files="$all_files $f"
+            fi
+          done
+          echo "all_files=$all_files" >> $GITHUB_ENV
+          echo "Found text files: $all_files"
+      - name: Run Bandit, ShellCheck, ESLint on all text files
+        run: |
+          set -e
+          for file in $all_files; do
+            echo "Scanning $file"
+            # Python
+            if [[ "$file" == *.py ]]; then
+              python3 -m py_compile "$file" || echo "Python syntax issue in $file"
+              bandit -r "$file" -ll -iii || true
+              flake8 "$file" --ignore=E302,E305,W391 || true
+            fi
+            # Shell
+            if [[ "$file" == *.sh ]]; then
+              shellcheck "$file" || true
+            fi
+            # JS/TS
+            if [[ "$file" == *.js || "$file" == *.ts ]]; then
+              eslint "$file" || true
+            fi
+          done
