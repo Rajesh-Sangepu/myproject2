@@ -59,6 +59,7 @@ jobs:
       - name: Run Python files
         if: env.python_found == 'true'
         run: |
+          set -e
           for file in $(find . -name "*.py"); do
             echo "Running $file"
             python "$file"
@@ -101,6 +102,7 @@ jobs:
       - name: Run Java files (catch runtime errors)
         if: env.java_found == 'true'
         run: |
+          set -e
           for file in $(find . -name "*.java"); do
             fqcn=$(sed 's|^\./||; s|/|.|g; s|\.java$||' <<< "$file")
             echo "Running $fqcn"
@@ -128,12 +130,14 @@ jobs:
       - name: Run ESLint for syntax & linting
         if: env.js_found == 'true'
         run: |
+          set -e
           for file in $(find . -name "*.js" -o -name "*.ts"); do
             eslint "$file"
           done
       - name: Run JS files to catch runtime errors
         if: env.js_found == 'true'
         run: |
+          set -e
           for file in $(find . -name "*.js"); do
             echo "Running $file"
             node "$file"
@@ -157,6 +161,7 @@ jobs:
       - name: Run Go scan
         if: env.go_found == 'true'
         run: |
+          set -e
           for file in $(find . -name "*.go"); do
             go fmt "$file"
             go vet "$file"
@@ -180,6 +185,7 @@ jobs:
       - name: Run Ruby syntax check
         if: env.rb_found == 'true'
         run: |
+          set -e
           for file in $(find . -name "*.rb"); do
             ruby -c "$file"
           done
@@ -202,6 +208,7 @@ jobs:
       - name: Run PHP syntax check
         if: env.php_found == 'true'
         run: |
+          set -e
           for file in $(find . -name "*.php"); do
             php -l "$file"
           done
@@ -224,6 +231,7 @@ jobs:
       - name: Run ShellCheck
         if: env.sh_found == 'true'
         run: |
+          set -e
           for file in $(find . -name "*.sh"); do
             shellcheck "$file"
           done
@@ -246,6 +254,7 @@ jobs:
       - name: Run C/C++ syntax check
         if: env.c_found == 'true'
         run: |
+          set -e
           for file in $(find . -name "*.c" -o -name "*.cpp"); do
             gcc -fsyntax-only "$file"
           done
@@ -268,6 +277,7 @@ jobs:
       - name: Run C# compile check
         if: env.cs_found == 'true'
         run: |
+          set -e
           for file in $(find . -name "*.cs"); do
             mcs "$file"
           done
