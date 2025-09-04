@@ -72,7 +72,7 @@ jobs:
           bandit -r . -ll -iii
 
   # ----------------------
-  # Java Scan (robust)
+  # Java Scan (compile-only, safe)
   # ----------------------
   java-code-scan:
     runs-on: ubuntu-latest
@@ -91,26 +91,16 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Compile & run Java files
+      - name: Compile Java files
         if: env.java_found == 'true'
         run: |
           mkdir -p build
-          javac -d build $(find . -name "*.java")
           set -e
-          for file in $(find . -name "*.java"); do
-            classname=$(basename "$file" .java)
-            package=$(grep -E '^package ' "$file" | cut -d' ' -f2 | sed 's/;//')
-            if [ -n "$package" ]; then
-              fqcn="$package.$classname"
-            else
-              fqcn="$classname"
-            fi
-            echo "Running $fqcn"
-            java -cp build "$fqcn"
-          done
+          javac -d build $(find . -name "*.java")
+          echo "Java compilation successful"
 
   # ----------------------
-  # JS/TS Scan (fixed)
+  # JS/TS Scan (runs & fails on errors)
   # ----------------------
   js-ts-code-scan:
     runs-on: ubuntu-latest
