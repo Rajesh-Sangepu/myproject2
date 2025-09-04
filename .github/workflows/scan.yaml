@@ -138,7 +138,7 @@ jobs:
           done
 
   # ----------------------
-  # Go Scan (compile + runtime)
+  # Go Scan (strict + runtime)
   # ----------------------
   go-code-scan:
     runs-on: ubuntu-latest
@@ -148,8 +148,11 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
-      - name: Enable Go modules
-        run: export GO111MODULE=on
+      - name: Ensure Go module exists
+        run: |
+          if [ ! -f go.mod ]; then
+            go mod init myproject
+          fi
       - name: Find Go files
         id: check-go
         run: |
@@ -158,23 +161,23 @@ jobs:
           else
             echo "go_found=false" >> $GITHUB_ENV
           fi
-      - name: Compile and vet Go files
+      - name: Compile all Go files
         if: env.go_found == 'true'
         run: |
           set -e
-          for pkg in $(go list ./...); do
-            go fmt "$pkg"
-            go build "$pkg"
-            go vet "$pkg"
+          for file in $(find . -name "*.go"); do
+            echo "Compiling $file"
+            go build "$file"
           done
-      - name: Run Go main files (catch runtime panics)
+          go vet ./...
+      - name: Run main packages for runtime errors
         if: env.go_found == 'true'
         run: |
           set -e
-          for file in $(find . -type f -name "*.go"); do
-            if grep -q "package main" "$file"; then
-              echo "Running $file"
-              go run "$file"
+          for dir in $(find . -type f -name "*.go" -exec dirname {} \; | sort -u); do
+            if grep -q "package main" "$dir"/*.go; then
+              echo "Running main package in $dir"
+              go run "$dir"
             fi
           done
 
