@@ -106,4 +106,140 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      - name: Create ESLint flat config
+        run: |
+          echo "export default [
+            {
+              languageOptions: {
+                globals: {
+                  require: 'readonly',
+                  console: 'readonly',
+                  process: 'readonly',
+                  module: 'readonly',
+                  __dirname: 'readonly'
+                }
+              },
+              rules: { 'no-undef': 'error' }
+            }
+          ];" > eslint.config.js
+      - name: Install ESLint
+        run: npm install -g eslint
+      - name: ESLint linting
+        run: npx eslint . --ext .js,.ts --max-warnings=0
+      - name: Run Node.js files
+        run: |
+          set -e
+          for file in $(find . -name "*.js"); do
+            echo "Running $file"
+            node "$file"
+          done
+
+  # ----------------------
+  # Go Scan (compile + runtime)
+  # ----------------------
+  go-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      - name: Ensure Go module exists
+        run: |
+          if [ ! -f go.mod ]; then
+            go mod init myproject
+          fi
+      - name: Find Go files
+        id: check-go
+        run: |
+          if ls **/*.go 1> /dev/null 2>&1; then
+            echo "go_found=true" >> $GITHUB_ENV
+          else
+            echo "go_found=false" >> $GITHUB_ENV
+          fi
+      - name: Compile and vet Go code
+        if: env.go_found == 'true'
+        run: |
+          set -e
+          go fmt ./...
+          go build ./...   # fails on syntax/type/undefined errors
+          go vet ./...     # extra static analysis
+      - name: Run Go main package (runtime check)
+        if: env.go_found == 'true'
+        run: |
+          set -e
+          go run .         # fails on runtime panics like out-of-range
+
+  # ----------------------
+  # Ruby Scan
+  # ----------------------
+  ruby-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Ruby syntax check
+        run: |
+          set -e
+          for file in $(find . -name "*.rb"); do
+            ruby -c "$file"
+          done
+
+  # ----------------------
+  # PHP Scan
+  # ----------------------
+  php-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run PHP syntax check
+        run: |
+          set -e
+          for file in $(find . -name "*.php"); do
+            php -l "$file"
+          done
+
+  # ----------------------
+  # Shell Scan
+  # ----------------------
+  shell-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ShellCheck
+        run: |
+          set -e
+          for file in $(find . -name "*.sh"); do
+            shellcheck "$file"
+          done
+
+  # ----------------------
+  # C / C++ Scan
+  # ----------------------
+  c-cpp-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run C/C++ syntax check
+        run: |
+          set -e
+          for file in $(find . -name "*.c" -o -name "*.cpp"); do
+            gcc -fsyntax-only "$file"
+          done
+
+  # ----------------------
+  # C# Scan
+  # ----------------------
+  cs-code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run C# compile check
+        run: |
+          set -e
+          for file in $(find . -name "*.cs"); do
+            mcs "$file"
+          done
