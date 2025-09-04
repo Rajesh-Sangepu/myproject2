@@ -100,7 +100,7 @@ jobs:
           echo "Java compilation successful"
 
   # ----------------------
-  # JS/TS Scan (optimized)
+  # JS/TS Scan (fast Node-aware)
   # ----------------------
   js-ts-code-scan:
     runs-on: ubuntu-latest
@@ -111,9 +111,14 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Create minimal ESLint config
+      - name: Create minimal Node-aware ESLint config
         run: |
-          echo "export default [{ rules: { 'no-undef': 'error' } }];" > eslint.config.js
+          echo "export default [
+            {
+              env: { node: true, es2021: true },
+              rules: { 'no-undef': 'error' }
+            }
+          ];" > eslint.config.js
 
       - name: Install ESLint
         run: npm install -g eslint
